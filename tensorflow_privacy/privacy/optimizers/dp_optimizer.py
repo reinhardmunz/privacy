@@ -68,6 +68,8 @@ def make_optimizer_class(cls):
       # may cause an OOM error.
       self._unroll_microbatches = unroll_microbatches
       self._was_compute_gradients_called = False
+      logging.info("Finished init of special optimizer")
+
 
     def compute_gradients(self,
                           loss,
@@ -77,6 +79,7 @@ def make_optimizer_class(cls):
                           colocate_gradients_with_ops=False,
                           grad_loss=None,
                           gradient_tape=None):
+      logging.info("Entered compute_gradients")
       self._was_compute_gradients_called = True
       if callable(loss):
         # TF is running in Eager mode, check we received a vanilla tape.
@@ -115,6 +118,7 @@ def make_optimizer_class(cls):
         final_grads = tf.nest.map_structure(normalize, grad_sums)
 
         grads_and_vars = list(zip(final_grads, var_list))
+        logging.info("Leaving compute_gradients")
         return grads_and_vars
 
       else:
@@ -175,7 +179,7 @@ def make_optimizer_class(cls):
           return tf.truediv(v, tf.cast(self._num_microbatches, tf.float32))
 
         final_grads = tf.nest.map_structure(normalize, grad_sums)
-
+        logging.info("Leaving compute_gradients")
         return list(zip(final_grads, var_list))
 
     def apply_gradients(self, grads_and_vars, global_step=None, name=None):
@@ -184,6 +188,7 @@ def make_optimizer_class(cls):
           ' called. Which means that the training is not differentially '
           'private. It happens for example in Keras training in TensorFlow '
           '2.0+.')
+      logging.info("Applying_gradients")
       return super(DPOptimizerClass,
                    self).apply_gradients(grads_and_vars, global_step, name)
 
