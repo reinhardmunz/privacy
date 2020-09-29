@@ -18,7 +18,9 @@
 from typing import Text, Dict, Union, List, Any, Tuple
 
 import numpy as np
+import scipy.special
 from sklearn import metrics
+
 
 ArrayDict = Dict[Text, np.ndarray]
 Dataset = Tuple[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]
@@ -223,16 +225,23 @@ def compute_performance_metrics(true_labels: np.ndarray,
 # ------------------------------------------------------------------------------
 
 
-def log_loss(y, pred, small_value=1e-8):
+def log_loss(labels: np.ndarray, pred: np.ndarray, small_value=1e-8):
   """Compute the cross entropy loss.
 
   Args:
-    y: numpy array, y[i] is the true label (scalar) of the i-th sample
-    pred: numpy array, pred[i] is the probability vector of the i-th sample
-    small_value: np.log can become -inf if the probability is too close to 0,
-      so the probability is clipped below by small_value.
+    labels: numpy array of shape (num_samples,) labels[i] is the true label
+      (scalar) of the i-th sample
+    pred: numpy array of shape(num_samples, num_classes) where pred[i] is the
+      probability vector of the i-th sample
+    small_value: a scalar. np.log can become -inf if the probability is too
+      close to 0, so the probability is clipped below by small_value.
 
   Returns:
     the cross-entropy loss of each sample
   """
-  return -np.log(np.maximum(pred[range(y.size), y], small_value))
+  return -np.log(np.maximum(pred[range(labels.size), labels], small_value))
+
+
+def log_loss_from_logits(labels: np.ndarray, logits: np.ndarray):
+  """Compute the cross entropy loss from logits."""
+  return log_loss(labels, scipy.special.softmax(logits, axis=-1))

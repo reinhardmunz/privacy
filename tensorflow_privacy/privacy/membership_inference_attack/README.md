@@ -18,6 +18,17 @@ the model are used (e.g., losses, logits, predictions). Neither model internals
 
 ## How to use
 
+
+### API revamp note
+We're **revamping our attacks API to make it more structured, modular and
+extensible**. The docs below refers to the legacy experimental API and will be
+updated soon. Stay tuned!
+
+For a quick preview, you can take a look at `data_structures.py` and `membership_inference_attack_new.py`.
+
+For now, here's a reference to the legacy API.
+
+
 ### Codelab
 
 The easiest way to get started is to go through [the introductory codelab](https://github.com/tensorflow/privacy/blob/master/tensorflow_privacy/privacy/membership_inference_attack/codelab.ipynb).
@@ -236,10 +247,17 @@ Among other things, the `run_attack` functionality allows to control:
 *   for the train-test split as well as for the class balancing randomness is
     used with a seed specified by `random_state`.
 
-## Contact
+## Contact / Feedback
 
-Reach out to tf-privacy@google.com and let us know how you’re using this module.
-We’re keen on hearing your stories, feedback, and suggestions!
+Fill out this
+[Google form](https://docs.google.com/forms/d/1DPwr3_OfMcqAOA6sdelTVjIZhKxMZkXvs94z16UCDa4/edit)
+or reach out to us at tf-privacy@google.com and let us know how you’re using
+this module. We’re keen on hearing your stories, feedback, and suggestions!
+
+## Contributing
+
+If you wish to add novel attacks to the attack library, please check our
+[guidelines](https://github.com/tensorflow/privacy/blob/master/tensorflow_privacy/privacy/membership_inference_attack/CONTRIBUTING.md).
 
 ## Copyright
 

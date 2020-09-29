@@ -28,7 +28,9 @@ import tensorflow.compat.v1 as tf
 
 from tensorflow_privacy.privacy.analysis import compute_dp_sgd_privacy_lib
 from tensorflow_privacy.privacy.optimizers import dp_optimizer
-from tutorials import mnist_dpsgd_tutorial_common as common
+
+#from tutorials import mnist_dpsgd_tutorial_common as common
+import mnist_dpsgd_tutorial_common as common
 
 flags.DEFINE_boolean(
     'dpsgd', True, 'If True, train with DP-SGD. If False, '
