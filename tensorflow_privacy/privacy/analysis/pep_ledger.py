@@ -23,7 +23,7 @@ class PepLedger:
 
   def record_privacy_loss(self, ledger_sample_state):
     #dense_sample = tf.sparse.to_dense(ledger_sample_state)
-    dense_sample = tf.constant(np.ones(60000))
+    dense_sample = tf.constant(np.ones(60000), dtype=tf.float32)
     return self.ledger.assign_add(dense_sample,
                                   use_locking=True,
                                   name='record_privacy_loss',
