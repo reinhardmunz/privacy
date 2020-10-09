@@ -44,10 +44,7 @@ class BackupLedgerHook(tf.train.SessionRunHook):
     self.ledger = ledger
 
   def backup_ledger(self, session):
-    logging.info('Backup ledger')
     self.ledger.backing_array = self.ledger.ledger.eval(session=session)
-    logging.info('New backup array non_zero: %s' %
-                 np.count_nonzero(self.ledger.backing_array))
 
   def after_run(self, run_context, run_values):
     self.backup_ledger(run_context.session)
@@ -99,9 +96,7 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
     # used for evaluation and debugging by tf.estimator. The actual loss being
     # minimized is opt_loss defined above and passed to optimizer.minimize().
     return tf.estimator.EstimatorSpec(
-        mode=mode, loss=scalar_loss, train_op=train_op,
-        training_chief_hooks=[BackupLedgerHook(global_ledger)],
-        training_hooks=[BackupLedgerHook(global_ledger)])
+        mode=mode, loss=scalar_loss, train_op=train_op)
 
   # Add evaluation metrics (for EVAL mode).
   elif mode == tf.estimator.ModeKeys.EVAL:
@@ -130,7 +125,6 @@ def main(unused_argv):
     # Train the model for one epoch.
     mnist_classifier.train(
         input_fn=pep_common.make_input_fn('train', FLAGS.batch_size),
-        hooks=[BackupLedgerHook(global_ledger)],
         steps=steps_per_epoch)
     end_time = time.time()
     logging.info('Epoch %d time in seconds: %.2f', epoch, end_time - start_time)
