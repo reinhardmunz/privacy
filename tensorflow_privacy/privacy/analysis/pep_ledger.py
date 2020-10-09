@@ -16,6 +16,7 @@ class PepLedger:
     return tf.SparseTensor(tf.zeros((0, 1), tf.int64), [], self.ledger.shape)
 
   def record_privacy_loss(self, ledger_sample_state):
-    dense_sample = tf.sparse.to_dense(ledger_sample_state)
+    #dense_sample = tf.sparse.to_dense(ledger_sample_state)
+    dense_sample = tf.ones((60000,), dtype=tf.float32)
     new_ledger = tf.nest.map_structure(tf.add, self.ledger, dense_sample)
     return self.ledger.assign(new_ledger, use_locking=True, read_value=False)

@@ -41,8 +41,8 @@ def ledger_format(dct):
   max = np.max(ledger)
   mean = np.mean(ledger)
   non_zero = np.count_nonzero(ledger)
-  return f"PEP LEDGER STATS: min={min} median={median} max={max} mean={mean} " \
-         f"non_zero={non_zero}"
+  return f"PEP LEDGER loss stats: min={min} median={median} max={max} " \
+         f"mean={mean} count_nonzero={non_zero}"
 
 
 def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
