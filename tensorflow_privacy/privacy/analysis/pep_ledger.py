@@ -14,7 +14,7 @@ class PepLedger:
     self.ledger = tf.Variable(
         initial_value=tf.convert_to_tensor(
             self.backing_array, dtype=tf.float32),
-        trainable=False, name='ledger')
+        trainable=False, name='ledger', use_resource=True)
     return self
 
   def initial_ledger_sample_state(self):
