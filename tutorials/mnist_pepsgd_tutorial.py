@@ -43,8 +43,14 @@ class BackupLedgerHook(tf.train.SessionRunHook):
   def __init__(self, ledger):
     self.ledger = ledger
 
-  def end(self, session):
+  def backup_ledger(self, session):
     self.ledger.backing_array = self.ledger.ledger.eval(session=session)
+
+  def after_run(self, run_context, run_values):
+    self.backup_ledger(run_context.session)
+
+  def end(self, session):
+    self.backup_ledger(session)
 
 
 def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
