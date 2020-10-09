@@ -34,23 +34,15 @@ flags.DEFINE_string('model_dir', None, 'Model directory')
 
 FLAGS = flags.FLAGS
 
-
-global_ledger_backing_array = np.zeros((60000,))
-global_ledger = pep_ledger.PepLedger(global_ledger_backing_array)
-
-
-class BackupLedgerHook(tf.train.SessionRunHook):
-  def __init__(self, ledger):
-    self.ledger = ledger
-
-  def backup_ledger(self, session):
-    self.ledger.backing_array = self.ledger.ledger.eval(session=session)
-
-  def after_run(self, run_context, run_values):
-    self.backup_ledger(run_context.session)
-
-  def end(self, session):
-    self.backup_ledger(session)
+def ledger_format(dct):
+  ledger = np.array(dct['pep_ledger']).astype(np.float)
+  min = np.min(ledger)
+  median = np.median(ledger)
+  max = np.max(ledger)
+  mean = np.mean(ledger)
+  non_zero = np.count_nonzero(ledger)
+  return f"PEP LEDGER STATS: min={min} median={median} max={max} mean={mean} " \
+         f"non_zero={non_zero}"
 
 
 def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
@@ -82,7 +74,7 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
       optimizer = pep_optimizer.PepGradientDescentGaussianOptimizer(
           l2_norm_clip=FLAGS.l2_norm_clip,
           noise_multiplier=FLAGS.noise_multiplier,
-          ledger=global_ledger.initialize(),
+          ledger=pep_ledger.PepLedger(60000),
           learning_rate=FLAGS.learning_rate)
       train_op = optimizer.minimize(loss=vector_loss, global_step=global_step,
                                     uids=uids)
@@ -97,14 +89,9 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
     # minimized is opt_loss defined above and passed to optimizer.minimize().
     return tf.estimator.EstimatorSpec(
         mode=mode, loss=scalar_loss, train_op=train_op,
-        training_chief_hooks=[BackupLedgerHook(global_ledger),
-                              tf.train.LoggingTensorHook([global_ledger.ledger],
-                                                         every_n_iter=234,
-                                                         at_end=True)],
-        training_hooks=[BackupLedgerHook(global_ledger),
-                        tf.train.LoggingTensorHook([global_ledger.ledger],
-                                                   every_n_iter=234,
-                                                   at_end=True)])
+        training_chief_hooks=[tf.train.LoggingTensorHook(
+            ['pep_ledger'], every_n_iter=100, at_end=True,
+            formatter=ledger_format)])
 
   # Add evaluation metrics (for EVAL mode).
   elif mode == tf.estimator.ModeKeys.EVAL:
@@ -133,7 +120,6 @@ def main(unused_argv):
     # Train the model for one epoch.
     mnist_classifier.train(
         input_fn=pep_common.make_input_fn('train', FLAGS.batch_size),
-        hooks=[BackupLedgerHook(global_ledger)],
         steps=steps_per_epoch)
     end_time = time.time()
     logging.info('Epoch %d time in seconds: %.2f', epoch, end_time - start_time)
@@ -143,12 +129,6 @@ def main(unused_argv):
         input_fn=pep_common.make_input_fn('test', FLAGS.batch_size, 1))
     test_accuracy = eval_results['accuracy']
     print('Test accuracy after %d epochs is: %.3f' % (epoch, test_accuracy))
-    print('Ledger STATS: min=%.3f median=%.3f max=%.3f mean=%.3f non_zero=%d' %
-          (global_ledger_backing_array.min(),
-           np.median(global_ledger_backing_array),
-           global_ledger_backing_array.max(),
-           global_ledger_backing_array.mean(),
-           np.count_nonzero(global_ledger_backing_array)))
 
     if not FLAGS.pepsgd:
       print('Trained with vanilla non-private SGD optimizer')
