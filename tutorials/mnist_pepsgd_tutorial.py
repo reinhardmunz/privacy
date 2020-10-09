@@ -97,8 +97,14 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
     # minimized is opt_loss defined above and passed to optimizer.minimize().
     return tf.estimator.EstimatorSpec(
         mode=mode, loss=scalar_loss, train_op=train_op,
-        training_chief_hooks=[BackupLedgerHook(global_ledger)],
-        training_hooks=[BackupLedgerHook(global_ledger)])
+        training_chief_hooks=[BackupLedgerHook(global_ledger),
+                              tf.train.LoggingTensorHook([global_ledger.ledger],
+                                                         every_n_iter=234,
+                                                         at_end=True)],
+        training_hooks=[BackupLedgerHook(global_ledger),
+                        tf.train.LoggingTensorHook([global_ledger.ledger],
+                                                   every_n_iter=234,
+                                                   at_end=True)])
 
   # Add evaluation metrics (for EVAL mode).
   elif mode == tf.estimator.ModeKeys.EVAL:
