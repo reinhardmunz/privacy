@@ -99,7 +99,9 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
     # used for evaluation and debugging by tf.estimator. The actual loss being
     # minimized is opt_loss defined above and passed to optimizer.minimize().
     return tf.estimator.EstimatorSpec(
-        mode=mode, loss=scalar_loss, train_op=train_op)
+        mode=mode, loss=scalar_loss, train_op=train_op,
+        training_chief_hooks=[BackupLedgerHook(global_ledger)],
+        training_hooks=[BackupLedgerHook(global_ledger)])
 
   # Add evaluation metrics (for EVAL mode).
   elif mode == tf.estimator.ModeKeys.EVAL:
