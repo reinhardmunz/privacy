@@ -44,7 +44,9 @@ class BackupLedgerHook(tf.train.SessionRunHook):
     self.ledger = ledger
 
   def backup_ledger(self, session):
+    logging.info('Backup ledger')
     self.ledger.backing_array = self.ledger.ledger.eval(session=session)
+    logging.info('New backup array: %s' % self.ledger.backing_array)
 
   def after_run(self, run_context, run_values):
     self.backup_ledger(run_context.session)
