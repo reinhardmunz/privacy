@@ -121,7 +121,7 @@ def make_optimizer_class(cls):
           with gradient_tape.stop_recording():
             grads = gradient_tape.gradient(single_loss, var_list)
           sample_state = self._pep_sum_query.accumulate_record(
-              sample_params, sample_state, (single_uid, grads))
+              sample_params, sample_state, tf.tuple(single_uid, grads))
           return sample_state
 
         if tf.shape(input=vector_loss)[0] != tf.shape(input=uids)[0]:

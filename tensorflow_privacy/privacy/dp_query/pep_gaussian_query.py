@@ -5,8 +5,6 @@ from __future__ import print_function
 import collections
 import distutils
 
-from absl import logging
-
 import tensorflow.compat.v1 as tf
 import tensorflow_probability as tfp
 
@@ -25,7 +23,8 @@ class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
       raise ValueError("PepGaussianQuery: stddev must be positive")
     self._l2_norm_clip = l2_norm_clip
     self._stddev = stddev
-    self.set_ledger(ledger)
+    if ledger is not None:
+      self.set_ledger(ledger)
 
   def make_global_state(self, l2_norm_clip, stddev):
     """Creates a global state from the given parameters."""
