@@ -10,6 +10,7 @@ from absl import app
 from absl import flags
 from absl import logging
 
+import numpy as np
 import tensorflow.compat.v1 as tf
 
 from tensorflow.python.ops import array_ops
@@ -32,6 +33,18 @@ flags.DEFINE_integer('epochs', 30, 'Number of epochs')
 flags.DEFINE_string('model_dir', None, 'Model directory')
 
 FLAGS = flags.FLAGS
+
+
+global_ledger_backing_array = np.zeros((60000,))
+global_ledger = pep_ledger.PepLedger(global_ledger_backing_array)
+
+
+class BackupLedgerHook(tf.train.SessionRunHook):
+  def __init__(self, ledger):
+    self.ledger = ledger
+
+  def end(self, session):
+    self.ledger.backing_array = self.ledger.ledger.eval(session=session)
 
 
 def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
@@ -63,7 +76,7 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
       optimizer = pep_optimizer.PepGradientDescentGaussianOptimizer(
           l2_norm_clip=FLAGS.l2_norm_clip,
           noise_multiplier=FLAGS.noise_multiplier,
-          ledger=pep_ledger.PepLedger(60000),
+          ledger=global_ledger.initialize(),
           learning_rate=FLAGS.learning_rate)
       train_op = optimizer.minimize(loss=vector_loss, global_step=global_step,
                                     uids=uids)
@@ -106,6 +119,7 @@ def main(unused_argv):
     # Train the model for one epoch.
     mnist_classifier.train(
         input_fn=pep_common.make_input_fn('train', FLAGS.batch_size),
+        hooks=[BackupLedgerHook(global_ledger)],
         steps=steps_per_epoch)
     end_time = time.time()
     logging.info('Epoch %d time in seconds: %.2f', epoch, end_time - start_time)
@@ -115,6 +129,12 @@ def main(unused_argv):
         input_fn=pep_common.make_input_fn('test', FLAGS.batch_size, 1))
     test_accuracy = eval_results['accuracy']
     print('Test accuracy after %d epochs is: %.3f' % (epoch, test_accuracy))
+    print('Ledger STATS: min=%.3f median=%.3f max=%.3f mean=%.3f non_zero=%d' %
+          (global_ledger_backing_array.min(),
+           np.median(global_ledger_backing_array),
+           global_ledger_backing_array.max(),
+           global_ledger_backing_array.mean(),
+           np.count_nonzero(global_ledger_backing_array)))
 
     if not FLAGS.pepsgd:
       print('Trained with vanilla non-private SGD optimizer')

@@ -155,7 +155,6 @@ def make_optimizer_class(cls):
                 self._global_state))
         sample_params = (
             self._pep_sum_query.derive_sample_params(self._global_state))
-        logging.info("compute_gradients: got parameters")
 
         def process_single_loss(i, sample_state):
           """Process one microbatch (record) with privacy helper."""
@@ -163,8 +162,6 @@ def make_optimizer_class(cls):
 
           single_loss = tf.squeeze(tf.gather(loss, [i]))
           single_uid = tf.squeeze(tf.gather(uids, [i]))
-
-          logging.info("compute_gradients-->process_single_loss: got values")
 
           if hasattr(self_super, 'compute_gradients'):
             # This case covers optimizers in tf.train.
@@ -178,12 +175,8 @@ def make_optimizer_class(cls):
               aggregation_method, colocate_gradients_with_ops, grad_loss))
           grads_list = list(grads)
 
-          logging.info("compute_gradients-->process_single_loss: got grads")
-
           sample_state = self._pep_sum_query.accumulate_record(
               sample_params, sample_state, (single_uid, grads_list))
-
-          logging.info("compute_gradients-->process_single_loss: got result")
 
           return sample_state
 
@@ -192,12 +185,8 @@ def make_optimizer_class(cls):
               tf.trainable_variables() + tf.get_collection(
                   tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES))
 
-        logging.info("compute_gradients: trainable vars is %s", var_list)
-
         sample_state = self._pep_sum_query.initial_sample_state(
             params=initial_sample_params, template=var_list)
-
-        logging.info("compute_gradients: got initial sample_state")
 
         # Use of while_loop here requires that sample_state be a nested
         # structure of tensors. In general, we would prefer to allow it to be
