@@ -135,7 +135,5 @@ class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
     noise = self.noise_from(privacy_sample_state)
     noised_data_result = tf.nest.map_structure(tf.add, data_sample_state, noise)
     record_op = self.record_privacy_loss(privacy_sample_state)
-    if record_op is None:
-      raise ValueError('CANNOT HAPPEN')
     with tf.control_dependencies([record_op]):
       return noised_data_result, global_state
