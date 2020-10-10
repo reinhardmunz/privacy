@@ -9,7 +9,7 @@ class PepLedger:
   def __init__(self, num_uids):
     self.ledger = tf.Variable(initial_value=tf.zeros((num_uids,),
                                                      tf.float32),
-                              trainable=False, name='pep_ledger',
+                              trainable=False, name='pep_internal_ledger',
                               use_resource=True)
 
   def initial_ledger_sample_state(self):
