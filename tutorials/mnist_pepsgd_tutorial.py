@@ -92,7 +92,8 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
     return tf.estimator.EstimatorSpec(
         mode=mode, loss=scalar_loss, train_op=train_op,
         training_chief_hooks=[tf.train.LoggingTensorHook(
-            ['pep_ledger'], every_n_iter=100, at_end=True)])
+            ['pep_internal_min', 'pep_internal_max', 'pep_internal_mean'],
+            every_n_iter=100, at_end=True)])
 
   # Add evaluation metrics (for EVAL mode).
   elif mode == tf.estimator.ModeKeys.EVAL:

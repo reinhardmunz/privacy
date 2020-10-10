@@ -22,7 +22,7 @@ def make_input_fn(split, input_batch_size=256, repetitions=-1, tpu=False):
       metadata = tf.stack([uid, label])
       return image, metadata
 
-    dataset = tfds.load(name='mnist', split=split)
+    dataset = tfds.load(name='mnist', split=split, shuffle_files=False)
     dataset = dataset.enumerate().map(parser).shuffle(60000).\
         repeat(repetitions).batch(batch_size)
     # If this input function is not meant for TPUs, we can stop here.
