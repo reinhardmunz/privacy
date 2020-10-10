@@ -10,7 +10,6 @@ from absl import app
 from absl import flags
 from absl import logging
 
-import numpy as np
 import tensorflow.compat.v1 as tf
 
 from tensorflow.python.ops import array_ops
@@ -21,6 +20,8 @@ from tensorflow_privacy.privacy.optimizers import pep_optimizer
 import mnist_dpsgd_tutorial_common as dp_common
 import mnist_pepsgd_common as pep_common
 
+import numpy as np
+
 flags.DEFINE_boolean(
     'pepsgd', True, 'If True, train with PEP-SGD. If False, '
     'train with vanilla SGD.')
@@ -30,21 +31,9 @@ flags.DEFINE_float('noise_multiplier', 1.1,
 flags.DEFINE_float('l2_norm_clip', 1.0, 'Clipping norm')
 flags.DEFINE_integer('batch_size', 256, 'Batch size')
 flags.DEFINE_integer('epochs', 30, 'Number of epochs')
-flags.DEFINE_string('model_dir', None, 'Model directory')
+flags.DEFINE_string('model_dir', '/tmp/munz-tf-model', 'Model directory')
 
 FLAGS = flags.FLAGS
-
-def ledger_format(dct):
-  ledger = np.array(dct['pep_ledger']).astype(np.float)
-  min = np.min(ledger)
-  median = np.median(ledger)
-  max = np.max(ledger)
-  mean = np.mean(ledger)
-  non_zero = np.count_nonzero(ledger)
-  return f"PEP LEDGER raw: {dct}\n" \
-         f"PEP LEDGER raw value: {dct['pep_ledger']}\n" \
-         f"PEP LEDGER loss stats: min={min} median={median} max={max} " \
-         f"mean={mean} count_nonzero={non_zero}"
 
 
 def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
@@ -90,10 +79,7 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
     # used for evaluation and debugging by tf.estimator. The actual loss being
     # minimized is opt_loss defined above and passed to optimizer.minimize().
     return tf.estimator.EstimatorSpec(
-        mode=mode, loss=scalar_loss, train_op=train_op,
-        training_chief_hooks=[tf.train.LoggingTensorHook(
-            ['pep_internal_min', 'pep_internal_max', 'pep_internal_mean'],
-            every_n_iter=100, at_end=True)])
+        mode=mode, loss=scalar_loss, train_op=train_op)
 
   # Add evaluation metrics (for EVAL mode).
   elif mode == tf.estimator.ModeKeys.EVAL:
@@ -131,6 +117,17 @@ def main(unused_argv):
         input_fn=pep_common.make_input_fn('test', FLAGS.batch_size, 1))
     test_accuracy = eval_results['accuracy']
     print('Test accuracy after %d epochs is: %.3f' % (epoch, test_accuracy))
+
+    if FLAGS.model_dir is not None:
+      current_global_step = tf.train.load_variable(FLAGS.model_dir,
+                                                   'global_step')
+      current_ledger = tf.train.load_variable(FLAGS.model_dir,
+                                              'pep_internal_ledger')
+      print(f"Ledger privacy loss stats after {current_global_step} steps are: "
+            f"min_priv_loss={np.min(current_ledger)} "
+            f"mean_priv_loss={np.mean(current_ledger)} "
+            f"median_priv_loss={np.median(current_ledger)} "
+            f"max_priv_loss={np.max(current_ledger)}")
 
     if not FLAGS.pepsgd:
       print('Trained with vanilla non-private SGD optimizer')
