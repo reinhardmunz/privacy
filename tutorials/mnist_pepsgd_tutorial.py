@@ -124,10 +124,10 @@ def main(unused_argv):
       current_ledger = tf.train.load_variable(FLAGS.model_dir,
                                               'pep_internal_ledger')
       print(f"Ledger privacy loss stats after {current_global_step} steps are: "
-            f"min_priv_loss={np.min(current_ledger)} "
-            f"mean_priv_loss={np.mean(current_ledger)} "
-            f"median_priv_loss={np.median(current_ledger)} "
-            f"max_priv_loss={np.max(current_ledger)}")
+            f"min_priv_loss={np.min(current_ledger):.3f} "
+            f"mean_priv_loss={np.mean(current_ledger):.3f} "
+            f"median_priv_loss={np.median(current_ledger):.3f} "
+            f"max_priv_loss={np.max(current_ledger):.3f}")
 
     if not FLAGS.pepsgd:
       print('Trained with vanilla non-private SGD optimizer')
