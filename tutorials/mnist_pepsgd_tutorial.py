@@ -62,13 +62,17 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
       # available in dp_optimizer. Most optimizers inheriting from
       # tf.train.Optimizer should be wrappable in differentially private
       # counterparts by calling dp_optimizer.optimizer_from_args().
+      ledger = pep_ledger.PepLedger(60000)
       optimizer = pep_optimizer.PepGradientDescentGaussianOptimizer(
           l2_norm_clip=FLAGS.l2_norm_clip,
           noise_multiplier=FLAGS.noise_multiplier,
-          ledger=pep_ledger.PepLedger(60000),
+          ledger=ledger,
           learning_rate=FLAGS.learning_rate)
       train_op = optimizer.minimize(loss=vector_loss, global_step=global_step,
                                     uids=uids)
+      tf.summary.scalar("min_priv_loss", ledger.min)
+      tf.summary.scalar("mean_priv_loss", ledger.mean)
+      tf.summary.scalar("max_priv_loss", ledger.max)
     else:
       optimizer = tf.train.GradientDescentOptimizer(
           learning_rate=FLAGS.learning_rate)
