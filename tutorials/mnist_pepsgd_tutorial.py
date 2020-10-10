@@ -73,6 +73,7 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
       tf.summary.scalar("min_priv_loss", ledger.min)
       tf.summary.scalar("mean_priv_loss", ledger.mean)
       tf.summary.scalar("max_priv_loss", ledger.max)
+      tf.summary.histogram("priv_loss", ledger.ledger)
     else:
       optimizer = tf.train.GradientDescentOptimizer(
           learning_rate=FLAGS.learning_rate)
