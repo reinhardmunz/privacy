@@ -8,6 +8,8 @@ import distutils
 import tensorflow.compat.v1 as tf
 import tensorflow_probability as tfp
 
+from tensorflow.python.ops import array_ops
+
 from tensorflow_privacy.privacy.dp_query import dp_query
 from tensorflow_privacy.privacy.dp_query import pep_query
 
@@ -137,6 +139,7 @@ class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
     with tf.control_dependencies(tf.nest.flatten(noise)):
       with tf.control_dependencies(tf.nest.flatten(dense_ledger_sample_state)):
         with tf.control_dependencies(tf.nest.flatten(data_sample_state)):
+          noise = tf.nest.map_structure(array_ops.stop_gradient, noise)
           noised_data_result = tf.nest.map_structure(tf.add, data_sample_state,
                                                      noise)
           record_op = self.record_privacy_loss(dense_ledger_sample_state)
