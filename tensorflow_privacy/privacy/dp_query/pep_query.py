@@ -66,23 +66,22 @@ class PepQuery(dp_query.DPQuery):
         self.data_sample_state_from(sample_state_2))
     return new_privacy_sample_state, new_data_sample_state
 
+  def dense_from(self, ledger_sample_state):
+    return tf.sparse.to_dense(ledger_sample_state)
+
   def get_noised_result(self, sample_state, global_state):
     privacy_sample_state = self.privacy_sample_state_from(sample_state)
     data_sample_state = self.data_sample_state_from(sample_state)
-    record_op = self.record_privacy_loss(privacy_sample_state)
+    ledger_sample_state = self.ledger_sample_state_from(privacy_sample_state)
+    dense_ledger_sample_state = self.dense_from(ledger_sample_state)
+    record_op = self.record_privacy_loss(dense_ledger_sample_state)
     data_result, global_state = self.get_noised_data_result(
         privacy_sample_state, data_sample_state, global_state)
     with tf.control_dependencies([record_op]):
       return data_result, global_state
 
-  def record_privacy_loss(self, privacy_sample_state):
-    if not self._ledger:
-      raise ValueError('CANNOT HAVE NO LEDGER')
-    if not privacy_sample_state:
-      raise ValueError('privacy_sample_state cannot be None.')
-    ledger_sample_state = self.ledger_sample_state_from(privacy_sample_state)
-    record_op = self._ledger.record_privacy_loss(ledger_sample_state)
-    return record_op
+  def record_privacy_loss(self, dense_ledger_sample_state):
+    return self._ledger.record_privacy_loss(dense_ledger_sample_state)
 
   def initial_sample_state(self, params=None, template=None):
     initial_privacy_sample_state = self.initial_privacy_sample_state(

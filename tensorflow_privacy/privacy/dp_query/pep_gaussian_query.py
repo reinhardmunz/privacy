@@ -132,7 +132,14 @@ class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
   def get_noised_data_result(self, privacy_sample_state, data_sample_state,
                              global_state):
     noise = self.noise_from(privacy_sample_state)
-    noised_data_result = tf.nest.map_structure(tf.add, data_sample_state, noise)
-    record_op = self.record_privacy_loss(privacy_sample_state)
+    ledger_sample_state = self.ledger_sample_state_from(privacy_sample_state)
+    dense_ledger_sample_state = self.dense_from(ledger_sample_state)
+    with tf.control_dependencies(tf.nest.flatten(noise)):
+      with tf.control_dependencies(tf.nest.flatten(dense_ledger_sample_state)):
+        with tf.control_dependencies(tf.nest.flatten(data_sample_state)):
+          noised_data_result = tf.nest.map_structure(tf.add, data_sample_state,
+                                                     noise)
+          record_op = self.record_privacy_loss(dense_ledger_sample_state)
     with tf.control_dependencies([record_op]):
-      return noised_data_result, global_state
+      final_result = tf.nest.map_structure(tf.identity, noised_data_result)
+      return final_result, global_state

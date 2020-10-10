@@ -41,7 +41,9 @@ def ledger_format(dct):
   max = np.max(ledger)
   mean = np.mean(ledger)
   non_zero = np.count_nonzero(ledger)
-  return f"PEP LEDGER loss stats: min={min} median={median} max={max} " \
+  return f"PEP LEDGER raw: {dct}\n" \
+         f"PEP LEDGER raw value: {dct['pep_ledger']}\n" \
+         f"PEP LEDGER loss stats: min={min} median={median} max={max} " \
          f"mean={mean} count_nonzero={non_zero}"
 
 
@@ -90,8 +92,7 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
     return tf.estimator.EstimatorSpec(
         mode=mode, loss=scalar_loss, train_op=train_op,
         training_chief_hooks=[tf.train.LoggingTensorHook(
-            ['pep_ledger'], every_n_iter=100, at_end=True,
-            formatter=ledger_format)])
+            ['pep_ledger'], every_n_iter=100, at_end=True)])
 
   # Add evaluation metrics (for EVAL mode).
   elif mode == tf.estimator.ModeKeys.EVAL:
