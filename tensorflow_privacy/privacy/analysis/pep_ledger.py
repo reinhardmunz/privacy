@@ -11,13 +11,13 @@ class PepLedger:
                                                      tf.float32),
                               trainable=False, name='pep_internal_ledger',
                               use_resource=True)
-    self.min = tf.Variable(initial_value=tf.zeros((1,), tf.float32),
+    self.min = tf.Variable(initial_value=tf.zeros((), tf.float32),
                            trainable=False, name='pep_internal_min',
                            use_resource=True)
-    self.max = tf.Variable(initial_value=tf.zeros((1,), tf.float32),
+    self.max = tf.Variable(initial_value=tf.zeros((), tf.float32),
                            trainable=False, name='pep_internal_max',
                            use_resource=True)
-    self.mean = tf.Variable(initial_value=tf.zeros((1,), tf.float32),
+    self.mean = tf.Variable(initial_value=tf.zeros((), tf.float32),
                             trainable=False, name='pep_internal_mean',
                             use_resource=True)
 
