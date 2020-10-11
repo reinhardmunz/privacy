@@ -41,7 +41,7 @@ flags.DEFINE_float('l2_norm_clip', 1.0, 'Clipping norm')
 flags.DEFINE_integer('batch_size', 256, 'Batch size')
 flags.DEFINE_integer('epochs', 30, 'Number of epochs')
 flags.DEFINE_integer(
-    'microbatches', 256, 'Number of microbatches '
+    'microbatches', None, 'Number of microbatches '
     '(must evenly divide batch_size)')
 flags.DEFINE_string('model_dir', None, 'Model directory')
 
@@ -103,7 +103,8 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
 
 def main(unused_argv):
   logging.set_verbosity(logging.INFO)
-  if FLAGS.dpsgd and FLAGS.batch_size % FLAGS.microbatches != 0:
+  if FLAGS.dpsgd and FLAGS.microbatches is not None and \
+        FLAGS.batch_size % FLAGS.microbatches != 0:
     raise ValueError('Number of microbatches should divide evenly batch_size')
 
   # Instantiate the tf.Estimator.
