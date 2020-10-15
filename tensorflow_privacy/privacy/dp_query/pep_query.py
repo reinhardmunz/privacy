@@ -31,7 +31,7 @@ class PepQuery(dp_query.DPQuery):
     return preprocessed_privacy_record, preprocessed_data_record
 
   def preprocess_privacy_record(self, params, privacy_record):
-    return 0.0, privacy_record
+    return privacy_record
 
   def preprocess_data_record(self, params, data_record):
     return data_record
@@ -69,23 +69,12 @@ class PepQuery(dp_query.DPQuery):
   def dense_from(self, ledger_sample_state):
     return tf.sparse.to_dense(ledger_sample_state)
 
-  def get_noised_result(self, sample_state, global_state):
-    privacy_sample_state = self.privacy_sample_state_from(sample_state)
-    data_sample_state = self.data_sample_state_from(sample_state)
-    ledger_sample_state = self.ledger_sample_state_from(privacy_sample_state)
-    dense_ledger_sample_state = self.dense_from(ledger_sample_state)
-    record_op = self.record_privacy_loss(dense_ledger_sample_state)
-    data_result, global_state = self.get_noised_data_result(
-        privacy_sample_state, data_sample_state, global_state)
-    with tf.control_dependencies([record_op]):
-      return data_result, global_state
-
   def record_privacy_loss(self, dense_ledger_sample_state):
     return self._ledger.record_privacy_loss(dense_ledger_sample_state)
 
   def initial_sample_state(self, params=None, template=None):
     initial_privacy_sample_state = self.initial_privacy_sample_state(
-        params=params, data_template=template)
+        data_template=template)
     initial_data_sample_state = self.initial_data_sample_state(
         data_template=template)
     return initial_privacy_sample_state, initial_data_sample_state
@@ -102,6 +91,12 @@ class PepQuery(dp_query.DPQuery):
 
   def initial_privacy_sample_state(self, params=None, data_template=None):
     return None
+
+  def get_noised_result(self, sample_state, global_state):
+    privacy_sample_state = self.privacy_sample_state_from(sample_state)
+    data_sample_state = self.data_sample_state_from(sample_state)
+    return self.get_noised_data_result(privacy_sample_state, data_sample_state,
+                                       global_state)
 
   @abc.abstractmethod
   def accumulate_preprocessed_privacy_record(self, privacy_sample_state,

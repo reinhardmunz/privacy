@@ -8,7 +8,7 @@ import distutils
 import tensorflow.compat.v1 as tf
 import tensorflow_probability as tfp
 
-from tensorflow.python.ops import array_ops
+from absl import logging
 
 from tensorflow_privacy.privacy.dp_query import dp_query
 from tensorflow_privacy.privacy.dp_query import pep_query
@@ -17,30 +17,24 @@ from tensorflow_privacy.privacy.dp_query import pep_query
 class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
   # pylint: disable=invalid-name
   _GlobalState = collections.namedtuple(
-      '_GlobalState', ['l2_norm_clip', 'stddev'])
+      '_GlobalState', ['l2_norm_clip'])
 
-  def __init__(self, l2_norm_clip, stddev, ledger=None):
+  def __init__(self, l2_norm_clip, noise, ledger=None):
     super().__init__()
-    if stddev <= 0:
-      raise ValueError("PepGaussianQuery: stddev must be positive")
     self._l2_norm_clip = l2_norm_clip
-    self._stddev = stddev
+    self._noise = noise
     if ledger is not None:
       self.set_ledger(ledger)
 
-  def make_global_state(self, l2_norm_clip, stddev):
+  def make_global_state(self, l2_norm_clip):
     """Creates a global state from the given parameters."""
-    return self._GlobalState(tf.cast(l2_norm_clip, tf.float32),
-                             tf.cast(stddev, tf.float32))
+    return self._GlobalState(tf.cast(l2_norm_clip, tf.float32))
 
   def initial_global_state(self):
-    return self.make_global_state(self._l2_norm_clip, self._stddev)
+    return self.make_global_state(self._l2_norm_clip)
 
   def derive_sample_params(self, global_state):
-    return global_state.l2_norm_clip, global_state.stddev
-
-  def derive_initial_sample_params(self, global_state):
-    return global_state.stddev
+    return global_state.l2_norm_clip
 
   def preprocess_data_record_impl(self, params, data_record):
     """Clips the l2 norm, returning the clipped record and the l2 norm.
@@ -60,91 +54,112 @@ class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
     return tf.nest.pack_sequence_as(data_record, clipped_as_list), norm
 
   def preprocess_data_record(self, params, data_record):
-    preprocessed_data_record, _ = self.preprocess_data_record_impl(params[0],
+    preprocessed_data_record, _ = self.preprocess_data_record_impl(params,
                                                                    data_record)
     return preprocessed_data_record
 
-  def preprocess_privacy_record(self, params, privacy_record):
-    return params[1], privacy_record
-
   def initial_privacy_sample_state(self, params=None, data_template=None):
-    if params is None:
-      raise ValueError("PepGaussianQuery: params may not be None")
-    if data_template is None:
-      raise ValueError("PepGaussianQuery: data_template may not be None")
-    structure = tf.nest.map_structure(dp_query.zeros_like, data_template)
+    return self._ledger.initial_ledger_sample_state()
 
-    if distutils.version.LooseVersion(
-        tf.__version__) < distutils.version.LooseVersion('2.0.0'):
-
-      def add_noise(v):
-        return v + tf.random.normal(
-            tf.shape(input=v), stddev=params, dtype=v.dtype)
-    else:
-      random_normal = tf.random_normal_initializer(
-          stddev=params)
-
-      def add_noise(v):
-        return v + tf.cast(random_normal(tf.shape(input=v)), dtype=v.dtype)
-
-    noise = tf.nest.map_structure(add_noise, structure)
-    initial_ledger_sample_state = self._ledger.initial_ledger_sample_state()
-    return noise, initial_ledger_sample_state
-
-  def noise_from(self, privacy_sample_state):
-    return privacy_sample_state[0]
-
-  def ledger_sample_state_from(self, privacy_sample_state):
-    return privacy_sample_state[1]
-
-  def calculate_privacy_loss_for(self, noise, stddev, data_record):
+  def calculate_privacy_loss_for(self, data_record):
     def special_reshape(v):
       return tf.reshape(v, [-1])
 
     flat_data_lst = tf.nest.map_structure(special_reshape, data_record)
-    flat_data = tf.concat(flat_data_lst, axis=0)
-    true_dist = tfp.distributions.Normal(loc=flat_data, scale=stddev)
-    flat_zeros = dp_query.zeros_like(flat_data)
-    zero_dist = tfp.distributions.Normal(loc=flat_zeros, scale=stddev)
-    flat_noise_lst = tf.nest.map_structure(special_reshape, noise)
-    flat_noise = tf.concat(flat_noise_lst, axis=0)
-    flat_noised_result = tf.nest.map_structure(tf.add, flat_data, flat_noise)
-    true_log_prob = true_dist.log_prob(flat_noised_result)
-    zero_log_prob = zero_dist.log_prob(flat_noised_result)
-    privacy_losses = tf.nest.map_structure(tf.subtract, true_log_prob,
-                                           zero_log_prob)
-    return tf.reduce_sum(privacy_losses)
+    flat_data = tf.squeeze(tf.concat(flat_data_lst, axis=0))
+    noise = self._noise.get_noise(flat_data)
+    with tf.control_dependencies(tf.nest.flatten(noise)):
+      flat_data = tf.expand_dims(flat_data, axis=0)
+      flat_data = tf.repeat(flat_data, self._noise.steps_per_epoch, axis=0)
+      true_dist = tfp.distributions.Normal(loc=flat_data,
+                                           scale=self._noise.stddev)
+      flat_zeros = dp_query.zeros_like(flat_data)
+      zero_dist = tfp.distributions.Normal(loc=flat_zeros,
+                                           scale=self._noise.stddev)
+      flat_noised_result = tf.nest.map_structure(tf.add, flat_data, noise)
+      true_log_prob = true_dist.log_prob(flat_noised_result)
+      zero_log_prob = zero_dist.log_prob(flat_noised_result)
+      privacy_losses = tf.nest.map_structure(tf.subtract, true_log_prob,
+                                             zero_log_prob)
+      per_batch_losses = tf.reduce_sum(privacy_losses, 1)
+    return tfp.math.reduce_logmeanexp(per_batch_losses)
 
   def accumulate_preprocessed_privacy_record(self, privacy_sample_state,
                                              preprocessed_privacy_record,
                                              preprocessed_data_record):
-    noise = self.noise_from(privacy_sample_state)
-    ledger_sample_state = self.ledger_sample_state_from(privacy_sample_state)
-    stddev = preprocessed_privacy_record[0]
-    uid = preprocessed_privacy_record[1]
-    privacy_loss = self.calculate_privacy_loss_for(noise, stddev,
-                                                   preprocessed_data_record)
-    ledger_entry = tf.SparseTensor([[uid]], values=[privacy_loss],
-                                   dense_shape=ledger_sample_state.dense_shape)
+    privacy_loss = self.calculate_privacy_loss_for(preprocessed_data_record)
+    ledger_entry = tf.SparseTensor([[preprocessed_privacy_record]],
+                                   values=[privacy_loss],
+                                   dense_shape=privacy_sample_state.dense_shape)
     new_ledger_sample_state = tf.nest.map_structure(tf.sparse_add,
-                                                    ledger_sample_state,
+                                                    privacy_sample_state,
                                                     ledger_entry)
-    return noise, new_ledger_sample_state
+    return new_ledger_sample_state
 
   def get_noised_data_result(self, privacy_sample_state, data_sample_state,
                              global_state):
-    noise = self.noise_from(privacy_sample_state)
-    ledger_sample_state = self.ledger_sample_state_from(privacy_sample_state)
-    dense_ledger_sample_state = self.dense_from(ledger_sample_state)
-    with tf.control_dependencies(tf.nest.flatten(noise)):
-      with tf.control_dependencies(tf.nest.flatten(dense_ledger_sample_state)):
-        with tf.control_dependencies(tf.nest.flatten(data_sample_state)):
-          noise = tf.nest.map_structure(array_ops.stop_gradient, noise)
-          dense_ledger_sample_state = array_ops.stop_gradient(
-              dense_ledger_sample_state)
-          noised_data_result = tf.nest.map_structure(tf.add, data_sample_state,
-                                                     noise)
-          record_op = self.record_privacy_loss(dense_ledger_sample_state)
+    dense_ledger_sample_state = self.dense_from(privacy_sample_state)
+    with tf.control_dependencies(tf.nest.flatten(dense_ledger_sample_state)):
+      noise = self._noise.get_batch_noise()
+
+      def special_reshape(v):
+        return tf.reshape(v, [-1])
+
+      flat_data_lst = tf.nest.map_structure(special_reshape, data_sample_state)
+      flat_data = tf.squeeze(tf.concat(flat_data_lst, axis=0))
+      noised_data = tf.nest.map_structure(tf.add, flat_data, noise)
+      split_sizes = tf.nest.map_structure(lambda x: x.shape[0], flat_data_lst)
+      splits = tf.split(noised_data, split_sizes)
+
+      def special_merge(s, d):
+        return tf.reshape(s, d.shape)
+
+      result_data = tf.nest.map_structure(special_merge, splits,
+                                          data_sample_state)
+      record_op = self.record_privacy_loss(dense_ledger_sample_state)
     with tf.control_dependencies([record_op]):
-      final_result = tf.nest.map_structure(tf.identity, noised_data_result)
+      final_result = tf.nest.map_structure(tf.identity, result_data)
       return final_result, global_state
+
+
+class PepGaussianNoise:
+  def __init__(self, global_step, steps_per_epoch, stddev):
+    self.global_step = global_step
+    self.steps_per_epoch = steps_per_epoch
+    if stddev <= 0:
+      raise ValueError("PepGaussianQuery: stddev must be positive")
+    self.stddev = tf.cast(stddev, tf.float32)
+    self.noise = tf.Variable(initial_value=tf.zeros(()), trainable=False,
+                             validate_shape=False, name='noise',
+                             shape=tf.TensorShape(None), use_resource=True)
+
+  def get_noise(self, data_template):
+    def assign_noise():
+      if data_template is None:
+        raise ValueError("PepGaussianNoise: data_template may not be None")
+      zeros = tf.zeros(data_template.shape, dtype=tf.float32)
+      zeros = tf.expand_dims(zeros, axis=0)
+      zeros = tf.repeat(zeros, self.steps_per_epoch, axis=0)
+      if distutils.version.LooseVersion(
+          tf.__version__) < distutils.version.LooseVersion('2.0.0'):
+        def add_noise(v):
+          return v + tf.random.normal(
+            tf.shape(input=v), stddev=self.stddev, dtype=v.dtype)
+      else:
+        random_normal = tf.random_normal_initializer(stddev=self.stddev)
+        def add_noise(v):
+          return v + tf.cast(random_normal(tf.shape(input=v)), dtype=v.dtype)
+      noise = tf.nest.map_structure(add_noise, zeros)
+      with tf.control_dependencies(tf.nest.flatten(noise)):
+        return self.noise.assign(noise, use_locking=True, read_value=False)
+
+    step_in_epoch = tf.mod(self.global_step.read_value(), self.steps_per_epoch)
+    op = tf.cond(tf.equal(step_in_epoch, tf.zeros((), dtype=tf.int64)),
+                 true_fn=assign_noise, false_fn=lambda: tf.no_op())
+    with tf.control_dependencies([op]):
+      return self.noise.read_value()
+
+  def get_batch_noise(self):
+    step_in_epoch = tf.mod(self.global_step.read_value(), self.steps_per_epoch)
+    return tf.squeeze(
+      tf.slice(self.noise.read_value(), [step_in_epoch, 0], [1, -1]))

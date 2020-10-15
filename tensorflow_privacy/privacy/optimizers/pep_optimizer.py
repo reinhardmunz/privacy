@@ -8,7 +8,6 @@ from absl import logging
 
 import tensorflow.compat.v1 as tf
 
-from tensorflow_privacy.privacy.analysis import privacy_ledger
 from tensorflow_privacy.privacy.dp_query import pep_gaussian_query
 
 
@@ -73,7 +72,7 @@ def make_optimizer_class(cls):
                  colocate_gradients_with_ops=False, name=None,
                  grad_loss=None):
       grads_and_vars = self.compute_gradients(
-        loss, var_list=var_list, uids=uids, gate_gradients=gate_gradients,
+        loss, var_list, uids, gate_gradients=gate_gradients,
         aggregation_method=aggregation_method,
         colocate_gradients_with_ops=colocate_gradients_with_ops,
         grad_loss=grad_loss)
@@ -106,11 +105,8 @@ def make_optimizer_class(cls):
           raise ValueError('When in Eager mode, a tape needs to be passed.')
 
         vector_loss = loss()
-        initial_sample_params = (
-            self._pep_sum_query.derive_initial_sample_params(
-                self._global_state))
         sample_state = self._pep_sum_query.initial_sample_state(
-            params=initial_sample_params, template=var_list)
+            template=var_list)
         sample_params = (
             self._pep_sum_query.derive_sample_params(self._global_state))
 
@@ -150,9 +146,6 @@ def make_optimizer_class(cls):
         if gradient_tape:
           raise ValueError('When in graph mode, a tape should not be passed.')
 
-        initial_sample_params = (
-            self._pep_sum_query.derive_initial_sample_params(
-                self._global_state))
         sample_params = (
             self._pep_sum_query.derive_sample_params(self._global_state))
 
@@ -186,7 +179,7 @@ def make_optimizer_class(cls):
                   tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES))
 
         sample_state = self._pep_sum_query.initial_sample_state(
-            params=initial_sample_params, template=var_list)
+            template=var_list)
 
         # Use of while_loop here requires that sample_state be a nested
         # structure of tensors. In general, we would prefer to allow it to be
@@ -235,16 +228,15 @@ def make_gaussian_optimizer_class(cls):
     def __init__(
         self,
         l2_norm_clip,
-        noise_multiplier,
+        noise,
         ledger=None,
         *args,  # pylint: disable=keyword-arg-before-vararg
         **kwargs):
       self._l2_norm_clip = l2_norm_clip
-      self._noise_multiplier = noise_multiplier
       self._base_optimizer_class = cls
 
       pep_sum_query = pep_gaussian_query.PepGaussianSumQuery(
-          l2_norm_clip, l2_norm_clip * noise_multiplier, ledger=ledger)
+          l2_norm_clip, noise, ledger=ledger)
 
       super(PepGaussianOptimizerClass, self).__init__(
           pep_sum_query,

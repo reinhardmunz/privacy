@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os.path as path
 import time
 
 from absl import app
@@ -14,6 +15,7 @@ import tensorflow.compat.v1 as tf
 
 from tensorflow.python.ops import array_ops
 
+from tensorflow_privacy.privacy.dp_query import pep_gaussian_query
 from tensorflow_privacy.privacy.analysis import pep_ledger
 from tensorflow_privacy.privacy.optimizers import pep_optimizer
 
@@ -29,7 +31,9 @@ flags.DEFINE_float('learning_rate', .15, 'Learning rate for training')
 flags.DEFINE_float('noise_multiplier', 2.0,
                    'Ratio of the standard deviation to the clipping norm')
 flags.DEFINE_float('l2_norm_clip', 1.0, 'Clipping norm')
-flags.DEFINE_integer('batch_size', 256, 'Batch size')
+flags.DEFINE_integer('num_train_samples', 60000, 'Number of training samples')
+flags.DEFINE_integer('batch_size', 250, 'Batch size '
+                     '(must evenly divide num_train_samples)')
 flags.DEFINE_integer('epochs', 30, 'Number of epochs')
 flags.DEFINE_string('model_dir', '/tmp/munz-tf-model', 'Model directory')
 
@@ -62,14 +66,18 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
       # available in dp_optimizer. Most optimizers inheriting from
       # tf.train.Optimizer should be wrappable in differentially private
       # counterparts by calling dp_optimizer.optimizer_from_args().
-      ledger = pep_ledger.PepLedger(60000)
+      ledger = pep_ledger.PepLedger(FLAGS.num_train_samples)
+      steps_per_epoch = FLAGS.num_train_samples // FLAGS.batch_size
+      stddev = FLAGS.l2_norm_clip * FLAGS.noise_multiplier
+      noise = pep_gaussian_query.PepGaussianNoise(global_step, steps_per_epoch,
+                                                  stddev)
       optimizer = pep_optimizer.PepGradientDescentGaussianOptimizer(
           l2_norm_clip=FLAGS.l2_norm_clip,
-          noise_multiplier=FLAGS.noise_multiplier,
+          noise=noise,
           ledger=ledger,
           learning_rate=FLAGS.learning_rate)
-      train_op = optimizer.minimize(loss=vector_loss, global_step=global_step,
-                                    uids=uids)
+      train_op = optimizer.minimize(loss=vector_loss, uids=uids,
+                                    global_step=global_step)
       tf.summary.scalar("min_priv_loss", ledger.min)
       tf.summary.scalar("mean_priv_loss", ledger.mean)
       tf.summary.scalar("max_priv_loss", ledger.max)
@@ -100,6 +108,9 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
 
 
 def main(unused_argv):
+  assert FLAGS.num_train_samples % FLAGS.batch_size == 0
+  assert not path.exists(FLAGS.model_dir)
+
   logging.set_verbosity(logging.INFO)
 
   # Instantiate the tf.Estimator.
@@ -107,7 +118,7 @@ def main(unused_argv):
                                             model_dir=FLAGS.model_dir)
 
   # Training loop.
-  steps_per_epoch = 60000 // FLAGS.batch_size
+  steps_per_epoch = FLAGS.num_train_samples // FLAGS.batch_size
   for epoch in range(1, FLAGS.epochs + 1):
     start_time = time.time()
     # Train the model for one epoch.
