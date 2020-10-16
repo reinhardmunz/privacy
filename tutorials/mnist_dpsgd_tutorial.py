@@ -140,5 +140,12 @@ def main(unused_argv):
       print('Trained with vanilla non-private SGD optimizer')
 
 
+def main2(unused_argv):
+  eps, _ = compute_dp_sgd_privacy_lib.compute_dp_sgd_privacy(
+    60000, FLAGS.batch_size, FLAGS.noise_multiplier, FLAGS.epochs, 1e-323)
+  print('For delta=1e-5, the current epsilon is: %.2f' % eps)
+
+
 if __name__ == '__main__':
-  app.run(main)
+  #app.run(main)
+  app.run(main2)
