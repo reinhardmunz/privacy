@@ -32,7 +32,7 @@ flags.DEFINE_float('noise_multiplier', 2.0,
                    'Ratio of the standard deviation to the clipping norm')
 flags.DEFINE_float('l2_norm_clip', 1.0, 'Clipping norm')
 flags.DEFINE_integer('num_train_samples', 60000, 'Number of training samples')
-flags.DEFINE_integer('batch_size', 250, 'Batch size '
+flags.DEFINE_integer('batch_size', 60000, 'Batch size '
                      '(must evenly divide num_train_samples)')
 flags.DEFINE_integer('epochs', 30, 'Number of epochs')
 flags.DEFINE_string('model_dir', '/tmp/munz-tf-model', 'Model directory')
