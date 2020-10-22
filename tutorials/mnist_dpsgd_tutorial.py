@@ -35,10 +35,10 @@ flags.DEFINE_boolean(
     'dpsgd', True, 'If True, train with DP-SGD. If False, '
     'train with vanilla SGD.')
 flags.DEFINE_float('learning_rate', .15, 'Learning rate for training')
-flags.DEFINE_float('noise_multiplier', 2.0,
+flags.DEFINE_float('noise_multiplier', 1.1,
                    'Ratio of the standard deviation to the clipping norm')
 flags.DEFINE_float('l2_norm_clip', 1.0, 'Clipping norm')
-flags.DEFINE_integer('batch_size', 256, 'Batch size')
+flags.DEFINE_integer('batch_size', 250, 'Batch size')
 flags.DEFINE_integer('epochs', 30, 'Number of epochs')
 flags.DEFINE_integer(
     'microbatches', None, 'Number of microbatches '
