@@ -72,6 +72,7 @@ class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
       flat_data_mult = tf.expand_dims(flat_data, axis=0)
       flat_data_mult = tf.repeat(flat_data_mult, self._noise.steps_per_epoch,
                                  axis=0)
+      print(f"flat_data_mult {flat_data_mult} shape {flat_data_mult.shape}")
       true_dist = tfp.distributions.Normal(loc=flat_data_mult,
                                            scale=self._noise.stddev)
       flat_zeros = dp_query.zeros_like(flat_data_mult)
@@ -81,15 +82,22 @@ class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
       behind = tf.constant(self._noise.steps_per_epoch - 1)
       behind = tf.subtract(behind, step_in_epoch)
       padding = tf.stack([step_in_epoch, behind], 0)
-      padding = tf.expand_dims(padding, axis=0)
+      padding = tf.stack([padding, [0, 0]], 0)
+      flat_data = tf.expand_dims(flat_data, axis=0)
       padded_data = tf.pad(flat_data, padding)
+      print(f"padded_data {padded_data} shape {padded_data.shape}")
       flat_noised_result = tf.nest.map_structure(tf.add, padded_data, noise)
+      print(f"flat_noised_result {flat_noised_result} shape {flat_noised_result.shape}")
       true_log_prob = true_dist.log_prob(flat_noised_result)
       zero_log_prob = zero_dist.log_prob(flat_noised_result)
       privacy_losses = tf.nest.map_structure(tf.subtract, true_log_prob,
                                              zero_log_prob)
+      print(f"privacy_losses {privacy_losses} shape {privacy_losses.shape}")
       per_batch_losses = tf.reduce_sum(privacy_losses, 1)
-    return tfp.math.reduce_logmeanexp(per_batch_losses)
+      print(f"per_batch_losses {per_batch_losses} shape {per_batch_losses.shape}")
+      average = tfp.math.reduce_logmeanexp(per_batch_losses)
+      print(f"average {average} shape {average.shape}")
+    return average
 
   def accumulate_preprocessed_privacy_record(self, privacy_sample_state,
                                              preprocessed_privacy_record,
