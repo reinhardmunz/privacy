@@ -69,14 +69,21 @@ class PepGaussianSumQuery(pep_query.SumAggregationPepQuery):
     flat_data = tf.squeeze(tf.concat(flat_data_lst, axis=0))
     noise = self._noise.get_noise(flat_data)
     with tf.control_dependencies(tf.nest.flatten(noise)):
-      flat_data = tf.expand_dims(flat_data, axis=0)
-      flat_data = tf.repeat(flat_data, self._noise.steps_per_epoch, axis=0)
-      true_dist = tfp.distributions.Normal(loc=flat_data,
+      flat_data_mult = tf.expand_dims(flat_data, axis=0)
+      flat_data_mult = tf.repeat(flat_data_mult, self._noise.steps_per_epoch,
+                                 axis=0)
+      true_dist = tfp.distributions.Normal(loc=flat_data_mult,
                                            scale=self._noise.stddev)
-      flat_zeros = dp_query.zeros_like(flat_data)
+      flat_zeros = dp_query.zeros_like(flat_data_mult)
       zero_dist = tfp.distributions.Normal(loc=flat_zeros,
                                            scale=self._noise.stddev)
-      flat_noised_result = tf.nest.map_structure(tf.add, flat_data, noise)
+      step_in_epoch = tf.cast(self._noise.get_step_in_epoch(), dtype=tf.int32)
+      behind = tf.constant(self._noise.steps_per_epoch - 1)
+      behind = tf.subtract(behind, step_in_epoch)
+      padding = tf.stack([step_in_epoch, behind], 0)
+      padding = tf.expand_dims(padding, axis=0)
+      padded_data = tf.pad(flat_data, padding)
+      flat_noised_result = tf.nest.map_structure(tf.add, padded_data, noise)
       true_log_prob = true_dist.log_prob(flat_noised_result)
       zero_log_prob = zero_dist.log_prob(flat_noised_result)
       privacy_losses = tf.nest.map_structure(tf.subtract, true_log_prob,
@@ -159,7 +166,9 @@ class PepGaussianNoise:
     with tf.control_dependencies([op]):
       return self.noise.read_value()
 
+  def get_step_in_epoch(self):
+    return tf.mod(self.global_step.read_value(), self.steps_per_epoch)
+
   def get_batch_noise(self):
-    step_in_epoch = tf.mod(self.global_step.read_value(), self.steps_per_epoch)
     return tf.squeeze(
-      tf.slice(self.noise.read_value(), [step_in_epoch, 0], [1, -1]))
+      tf.slice(self.noise.read_value(), [self.get_step_in_epoch(), 0], [1, -1]))
