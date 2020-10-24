@@ -12,6 +12,7 @@ from absl import flags
 from absl import logging
 
 import tensorflow.compat.v1 as tf
+import tensorflow.compat.v2 as tf2
 
 from tensorflow.python.ops import array_ops
 
@@ -78,6 +79,7 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
           learning_rate=FLAGS.learning_rate)
       train_op = optimizer.minimize(loss=vector_loss, uids=uids,
                                     global_step=global_step)
+      tf2.summary.experimental.set_step(steps_per_epoch)
       tf.summary.scalar("min_priv_loss", ledger.min)
       tf.summary.scalar("mean_priv_loss", ledger.mean)
       tf.summary.scalar("max_priv_loss", ledger.max)
