@@ -12,7 +12,6 @@ from absl import flags
 from absl import logging
 
 import tensorflow.compat.v1 as tf
-import tensorflow.compat.v2 as tf2
 
 from tensorflow.python.ops import array_ops
 
@@ -79,7 +78,6 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
           learning_rate=FLAGS.learning_rate)
       train_op = optimizer.minimize(loss=vector_loss, uids=uids,
                                     global_step=global_step)
-      tf2.summary.experimental.set_step(steps_per_epoch)
       tf.summary.scalar("min_priv_loss", ledger.min)
       tf.summary.scalar("mean_priv_loss", ledger.mean)
       tf.summary.scalar("max_priv_loss", ledger.max)
@@ -115,12 +113,16 @@ def main(unused_argv):
 
   logging.set_verbosity(logging.INFO)
 
+  steps_per_epoch = FLAGS.num_train_samples // FLAGS.batch_size
+
   # Instantiate the tf.Estimator.
+  run_config = tf.estimator.RunConfig(save_summary_steps=steps_per_epoch,
+                                      log_step_count_steps=steps_per_epoch)
   mnist_classifier = tf.estimator.Estimator(model_fn=cnn_model_fn,
-                                            model_dir=FLAGS.model_dir)
+                                            model_dir=FLAGS.model_dir,
+                                            config=run_config)
 
   # Training loop.
-  steps_per_epoch = FLAGS.num_train_samples // FLAGS.batch_size
   for epoch in range(1, FLAGS.epochs + 1):
     start_time = time.time()
     # Train the model for one epoch.
