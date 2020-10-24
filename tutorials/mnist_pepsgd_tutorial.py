@@ -13,6 +13,7 @@ from absl import logging
 
 import tensorflow.compat.v1 as tf
 
+from tensorflow.python.summary import summary
 from tensorflow.python.ops import array_ops
 
 from tensorflow_privacy.privacy.dp_query import pep_gaussian_query
@@ -78,10 +79,21 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
           learning_rate=FLAGS.learning_rate)
       train_op = optimizer.minimize(loss=vector_loss, uids=uids,
                                     global_step=global_step)
-      tf.summary.scalar("min_priv_loss", ledger.min)
-      tf.summary.scalar("mean_priv_loss", ledger.mean)
-      tf.summary.scalar("max_priv_loss", ledger.max)
-      tf.summary.histogram("priv_loss", ledger.ledger)
+      summary.scalar("min_priv_loss", ledger.min)
+      summary.scalar("mean_priv_loss", ledger.mean)
+      summary.scalar("max_priv_loss", ledger.max)
+      summary.histogram("priv_loss", ledger.ledger)
+      return tf.estimator.EstimatorSpec(
+        mode=mode, loss=scalar_loss, train_op=train_op, training_hooks=[
+          tf.train.LoggingTensorHook(
+            {
+              'min_priv_loss': ledger.min,
+              'mean_priv_loss': ledger.mean,
+              'max_priv_loss': ledger.max,
+              'priv_loss': ledger.ledger,
+            },
+            every_n_iter=steps_per_epoch)
+        ])
     else:
       optimizer = tf.train.GradientDescentOptimizer(
           learning_rate=FLAGS.learning_rate)
@@ -91,8 +103,8 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
     # the vector_loss because tf.estimator requires a scalar loss. This is only
     # used for evaluation and debugging by tf.estimator. The actual loss being
     # minimized is opt_loss defined above and passed to optimizer.minimize().
-    return tf.estimator.EstimatorSpec(
-        mode=mode, loss=scalar_loss, train_op=train_op)
+      return tf.estimator.EstimatorSpec(
+          mode=mode, loss=scalar_loss, train_op=train_op)
 
   # Add evaluation metrics (for EVAL mode).
   elif mode == tf.estimator.ModeKeys.EVAL:
