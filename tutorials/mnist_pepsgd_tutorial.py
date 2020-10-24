@@ -83,17 +83,12 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
       summary.scalar("mean_priv_loss", ledger.mean)
       summary.scalar("max_priv_loss", ledger.max)
       summary.histogram("priv_loss", ledger.ledger)
+      summary.scalar("min_noise", noise.min)
+      summary.scalar("mean_noise", noise.mean)
+      summary.scalar("max_noise", noise.max)
+      summary.histogram("noise", noise.noise)
       return tf.estimator.EstimatorSpec(
-        mode=mode, loss=scalar_loss, train_op=train_op, training_hooks=[
-          tf.train.LoggingTensorHook(
-            {
-              'min_priv_loss': ledger.min,
-              'mean_priv_loss': ledger.mean,
-              'max_priv_loss': ledger.max,
-              'priv_loss': ledger.ledger,
-            },
-            every_n_iter=steps_per_epoch)
-        ])
+        mode=mode, loss=scalar_loss, train_op=train_op)
     else:
       optimizer = tf.train.GradientDescentOptimizer(
           learning_rate=FLAGS.learning_rate)
@@ -155,11 +150,18 @@ def main(unused_argv):
                                                    'global_step')
       current_ledger = tf.train.load_variable(FLAGS.model_dir,
                                               'pep_internal_ledger')
+      current_noise = tf.train.load_variable(FLAGS.model_dir,
+                                             'pep_internal_noise')
       print(f"Ledger privacy loss stats after {current_global_step} steps are: "
             f"min_priv_loss={np.min(current_ledger):.3f} "
             f"median_priv_loss={np.median(current_ledger):.3f} "
             f"mean_priv_loss={np.mean(current_ledger):.3f} "
             f"max_priv_loss={np.max(current_ledger):.3f}")
+      print(f"Noise stats after {current_global_step} steps are: "
+            f"min_noise={np.min(current_noise):.3f} "
+            f"median_noise={np.median(current_noise):.3f} "
+            f"mean_noise={np.mean(current_noise):.3f} "
+            f"max_noise={np.max(current_noise):.3f}")
 
     if not FLAGS.pepsgd:
       print('Trained with vanilla non-private SGD optimizer')
