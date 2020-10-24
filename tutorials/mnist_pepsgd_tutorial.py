@@ -123,11 +123,13 @@ def main(unused_argv):
   steps_per_epoch = FLAGS.num_train_samples // FLAGS.batch_size
 
   # Instantiate the tf.Estimator.
-  run_config = tf.estimator.RunConfig(save_summary_steps=steps_per_epoch,
-                                      log_step_count_steps=steps_per_epoch)
+  #run_config = tf.estimator.RunConfig(save_summary_steps=steps_per_epoch,
+  #                                    log_step_count_steps=steps_per_epoch)
+  #mnist_classifier = tf.estimator.Estimator(model_fn=cnn_model_fn,
+  #                                          model_dir=FLAGS.model_dir,
+  #                                          config=run_config)
   mnist_classifier = tf.estimator.Estimator(model_fn=cnn_model_fn,
-                                            model_dir=FLAGS.model_dir,
-                                            config=run_config)
+                                            model_dir=FLAGS.model_dir)
 
   # Training loop.
   for epoch in range(1, FLAGS.epochs + 1):
