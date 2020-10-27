@@ -79,13 +79,13 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
           learning_rate=FLAGS.learning_rate)
       train_op = optimizer.minimize(loss=vector_loss, uids=uids,
                                     global_step=global_step)
-      summary.scalar("min_priv_loss", ledger.min)
-      summary.scalar("mean_priv_loss", ledger.mean)
-      summary.scalar("max_priv_loss", ledger.max)
+      summary.scalar("priv_loss_min", ledger.min)
+      summary.scalar("priv_loss_mean", ledger.mean)
+      summary.scalar("priv_loss_max", ledger.max)
       summary.histogram("priv_loss", ledger.ledger)
-      summary.scalar("min_noise", noise.min)
-      summary.scalar("mean_noise", noise.mean)
-      summary.scalar("max_noise", noise.max)
+      summary.scalar("noise_min", noise.min)
+      summary.scalar("noise_mean", noise.mean)
+      summary.scalar("noise_max", noise.max)
       summary.histogram("noise", noise.noise)
       return tf.estimator.EstimatorSpec(
         mode=mode, loss=scalar_loss, train_op=train_op)
@@ -121,15 +121,14 @@ def main(unused_argv):
   logging.set_verbosity(logging.INFO)
 
   steps_per_epoch = FLAGS.num_train_samples // FLAGS.batch_size
+  steps_per_summary = steps_per_epoch // 2
 
   # Instantiate the tf.Estimator.
-  #run_config = tf.estimator.RunConfig(save_summary_steps=steps_per_epoch,
-  #                                    log_step_count_steps=steps_per_epoch)
-  #mnist_classifier = tf.estimator.Estimator(model_fn=cnn_model_fn,
-  #                                          model_dir=FLAGS.model_dir,
-  #                                          config=run_config)
+  run_config = tf.estimator.RunConfig(save_summary_steps=steps_per_summary,
+                                      log_step_count_steps=steps_per_summary)
   mnist_classifier = tf.estimator.Estimator(model_fn=cnn_model_fn,
-                                            model_dir=FLAGS.model_dir)
+                                            model_dir=FLAGS.model_dir,
+                                            config=run_config)
 
   # Training loop.
   for epoch in range(1, FLAGS.epochs + 1):
@@ -155,15 +154,15 @@ def main(unused_argv):
       current_noise = tf.train.load_variable(FLAGS.model_dir,
                                              'pep_internal_noise')
       print(f"Ledger privacy loss stats after {current_global_step} steps are: "
-            f"min_priv_loss={np.min(current_ledger):.3f} "
-            f"median_priv_loss={np.median(current_ledger):.3f} "
-            f"mean_priv_loss={np.mean(current_ledger):.3f} "
-            f"max_priv_loss={np.max(current_ledger):.3f}")
+            f"priv_loss_min={np.min(current_ledger):.3f} "
+            f"priv_loss_median={np.median(current_ledger):.3f} "
+            f"priv_loss_mean={np.mean(current_ledger):.3f} "
+            f"priv_loss_max={np.max(current_ledger):.3f}")
       print(f"Noise stats after {current_global_step} steps are: "
-            f"min_noise={np.min(current_noise):.3f} "
-            f"median_noise={np.median(current_noise):.3f} "
-            f"mean_noise={np.mean(current_noise):.3f} "
-            f"max_noise={np.max(current_noise):.3f}")
+            f"noise_min={np.min(current_noise):.3f} "
+            f"noise_median={np.median(current_noise):.3f} "
+            f"noise_mean={np.mean(current_noise):.3f} "
+            f"noise_max={np.max(current_noise):.3f}")
 
     if not FLAGS.pepsgd:
       print('Trained with vanilla non-private SGD optimizer')
