@@ -144,7 +144,7 @@ class PepGaussianNoise:
     if stddev <= 0:
       raise ValueError("PepGaussianQuery: stddev must be positive")
     self.stddev = tf.cast(stddev, tf.float32)
-    self.noise = tf.Variable(initial_value=tf.zeros(()), trainable=False,
+    self.noise = tf.Variable(initial_value=tf.zeros((2, 2)), trainable=False,
                              validate_shape=False, name='pep_internal_noise',
                              shape=tf.TensorShape(None), use_resource=True)
 
