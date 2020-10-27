@@ -147,15 +147,6 @@ class PepGaussianNoise:
     self.noise = tf.Variable(initial_value=tf.zeros(()), trainable=False,
                              validate_shape=False, name='pep_internal_noise',
                              shape=tf.TensorShape(None), use_resource=True)
-    self.min = tf.Variable(initial_value=tf.zeros((), tf.float32),
-                           trainable=False, name='pep_internal_noise_min',
-                           use_resource=True)
-    self.mean = tf.Variable(initial_value=tf.zeros((), tf.float32),
-                            trainable=False, name='pep_internal_noise_mean',
-                            use_resource=True)
-    self.max = tf.Variable(initial_value=tf.zeros((), tf.float32),
-                           trainable=False, name='pep_internal_noise_max',
-                           use_resource=True)
 
   def get_noise(self, data_template):
     def assign_noise():
@@ -174,17 +165,8 @@ class PepGaussianNoise:
         def add_noise(v):
           return v + tf.cast(random_normal(tf.shape(input=v)), dtype=v.dtype)
       new_noise = tf.nest.map_structure(add_noise, zeros)
-      new_min = tf.reduce_min(new_noise)
-      new_mean = tf.reduce_mean(new_noise)
-      new_max = tf.reduce_max(new_noise)
       with tf.control_dependencies(tf.nest.flatten(new_noise)):
-        with tf.control_dependencies([
-          self.min.assign(new_min, use_locking=True, read_value=False),
-          self.mean.assign(new_mean, use_locking=True, read_value=False),
-          self.max.assign(new_max, use_locking=True, read_value=False),
-        ]):
-          return self.noise.assign(new_noise, use_locking=True,
-                                   read_value=False)
+        return self.noise.assign(new_noise, use_locking=True, read_value=False)
 
     step_in_epoch = tf.mod(self.global_step.read_value(), self.steps_per_epoch)
     op = tf.cond(tf.equal(step_in_epoch, tf.zeros((), dtype=tf.int64)),

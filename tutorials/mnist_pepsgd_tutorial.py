@@ -79,14 +79,14 @@ def cnn_model_fn(features, labels, mode, params):  # pylint: disable=unused-argu
           learning_rate=FLAGS.learning_rate)
       train_op = optimizer.minimize(loss=vector_loss, uids=uids,
                                     global_step=global_step)
-      summary.scalar("priv_loss_min", ledger.min)
-      summary.scalar("priv_loss_mean", ledger.mean)
-      summary.scalar("priv_loss_max", ledger.max)
       summary.histogram("priv_loss", ledger.ledger)
-      summary.scalar("noise_min", noise.min)
-      summary.scalar("noise_mean", noise.mean)
-      summary.scalar("noise_max", noise.max)
+      summary.scalar("priv_loss_min", tf.reduce_min(ledger.ledger))
+      summary.scalar("priv_loss_mean", tf.reduce_mean(ledger.ledger))
+      summary.scalar("priv_loss_max", tf.reduce_max(ledger.ledger))
       summary.histogram("noise", noise.noise)
+      summary.scalar("noise_min", tf.reduce_min(noise.noise))
+      summary.scalar("noise_mean", tf.reduce_mean(noise.noise))
+      summary.scalar("noise_max", tf.reduce_max(noise.noise))
       return tf.estimator.EstimatorSpec(
         mode=mode, loss=scalar_loss, train_op=train_op)
     else:
