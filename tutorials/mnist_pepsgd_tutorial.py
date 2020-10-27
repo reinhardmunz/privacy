@@ -124,8 +124,9 @@ def main(unused_argv):
   steps_per_summary = steps_per_epoch // 2
 
   # Instantiate the tf.Estimator.
-  run_config = tf.estimator.RunConfig(save_summary_steps=steps_per_summary,
-                                      log_step_count_steps=steps_per_summary)
+  run_config = tf.estimator.RunConfig(save_summary_steps=1,
+                                      log_step_count_steps=1,
+                                      keep_checkpoint_max=None)
   mnist_classifier = tf.estimator.Estimator(model_fn=cnn_model_fn,
                                             model_dir=FLAGS.model_dir,
                                             config=run_config)
