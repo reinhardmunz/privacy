@@ -121,7 +121,6 @@ def main(unused_argv):
   logging.set_verbosity(logging.INFO)
 
   steps_per_epoch = FLAGS.num_train_samples // FLAGS.batch_size
-  steps_per_summary = steps_per_epoch // 2
 
   # Instantiate the tf.Estimator.
   run_config = tf.estimator.RunConfig(save_summary_steps=1,

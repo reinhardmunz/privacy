@@ -6,7 +6,7 @@ import tensorflow.compat.v1 as tf
 import tensorflow_datasets as tfds
 
 
-def make_input_fn(split, input_batch_size=256, repetitions=-1, tpu=False):
+def make_input_fn(split, input_batch_size=250, repetitions=-1, tpu=False):
   """Make input function on given MNIST split."""
 
   def input_fn(params=None):
