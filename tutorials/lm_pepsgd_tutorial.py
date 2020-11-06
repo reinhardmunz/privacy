@@ -47,7 +47,7 @@ def rnn_model_fn(features, labels, mode):  # pylint: disable=unused-argument
   """Model function for a RNN."""
 
   # Define RNN architecture using tf.keras.layers.
-  x = features['x']
+  x = features
   x = tf.reshape(x, [-1, SEQ_LEN])
   input_layer = x[:, :-1]
   input_one_hot = tf.one_hot(input_layer, 256)
@@ -118,17 +118,13 @@ def make_input_fn(split, input_size=45000, input_batch_size=250, repetitions=-1,
     batch_size = params.get('batch_size', input_batch_size)
 
     def parser(uid, example):
-      data = example['text'].flatten()
-      uid = tf.cast(uid, tf.int32)
-      return data, uid
+      return example['text'], tf.cast(uid, tf.int32)
 
     dataset = tfds.load(name='lm1b/subwords8k', split=split,
                         shuffle_files=False)
     dataset = dataset.take(input_size).enumerate().map(parser).\
         shuffle(input_size).repeat(repetitions).batch(batch_size)
 
-    dataset = dataset.enumerate().map(parser).shuffle(60000).\
-        repeat(repetitions).batch(batch_size)
     # If this input function is not meant for TPUs, we can stop here.
     # Otherwise, we need to explicitly set its shape. Note that for unknown
     # reasons, returning the latter format causes performance regression
